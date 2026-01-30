@@ -1,0 +1,43 @@
+name: hello_flutter
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+10
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  android_intent_plus: ^4.0.3
+  url_launcher: ^6.2.6
+  cupertino_icons: ^1.0.8
+  intl: ^0.20.2
+  shared_preferences: ^2.2.3
+  phone_state: ^1.0.3
+  permission_handler: ^11.0.0  
+  change_app_package_name: ^1.5.0
+  firebase_core: ^4.4.0
+  firebase_messaging: ^16.1.1
+  flutter_local_notifications: ^19.5.0
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^6.0.0
+
+# 👇 MUST BE AT ROOT LEVEL
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/logo.png
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
