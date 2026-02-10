@@ -49,6 +49,9 @@ class _MyAppState extends State<MyApp> {
   bool _initialized = false;
   String? _error;
 
+  String _stage = 'Starting app...';
+
+
   @override
   void initState() {
     super.initState();
@@ -56,41 +59,52 @@ class _MyAppState extends State<MyApp> {
   }
 
   /// 🚀 Safe App Initialization
-  Future<void> _initApp() async {
-    try {
-      await UserSession.restore();
+Future<void> _initApp() async {
+  try {
+    setState(() => _stage = 'Restoring user session');
 
-      if (!kIsWeb) {
-        FirebaseMessaging.onBackgroundMessage(
-          firebaseMessagingBackgroundHandler,
-        );
+    //await UserSession.restore();
 
-        FirebaseMessaging.onMessageOpenedApp.listen((message) {
-          handleNotificationNavigation(message.data);
-        });
-      }
+    setState(() => _stage = 'Setting up notifications');
 
-      setState(() {
-        _initialized = true;
-      });
-    } catch (e, st) {
-      debugPrint('INIT ERROR: $e');
-      debugPrintStack(stackTrace: st);
-
-      setState(() {
-        _error = e.toString();
-      });
+    if (!kIsWeb) {
+      FirebaseMessaging.onBackgroundMessage(
+        firebaseMessagingBackgroundHandler,
+      );
     }
+
+    setState(() => _stage = 'Initialization complete');
+
+    setState(() {
+      _initialized = true;
+    });
+  } catch (e, st) {
+    setState(() {
+      _error = e.toString();
+      _stage = 'Error occurred';
+    });
   }
+}
+  
   
 
   @override
   Widget build(BuildContext context) {
     // 🔄 LOADING (Apple needs this)
     if (!_initialized && _error == null) {
-      return const MaterialApp(
+      return  MaterialApp(
         home: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text(_stage),
+              ],
+            ),
+          ),
+
         ),
       );
     }
