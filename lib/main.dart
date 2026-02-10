@@ -1,60 +1,32 @@
 import 'package:flutter/foundation.dart';
-import 'firebase_options.dart';
 import 'package:flutter/material.dart';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'package:hello_flutter/utils/user_session.dart';
+import 'firebase_options.dart';
+import 'utils/user_session.dart';
 
 import 'login_screen.dart';
 import 'leads_page.dart';
 
-/// 🔔 BACKGROUND MESSAGE HANDLER (MUST BE TOP-LEVEL)
+/// 🔔 BACKGROUND MESSAGE HANDLER (MOBILE ONLY)
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (Firebase.apps.isEmpty) {
-    if (kIsWeb) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    } else {
-      await Firebase.initializeApp();
-    }
+    await Firebase.initializeApp();
   }
 }
 
-
-Map<String, dynamic>? _pendingNotificationData;
-
-
 /// 🌍 Global Navigator Key
-final GlobalKey<NavigatorState> navigatorKey =
-    GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (kIsWeb) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } else {
-    await Firebase.initializeApp();
-  }
-
-
-  await UserSession.restore();
-
-  if (!kIsWeb) {
-    FirebaseMessaging.onBackgroundMessage(
-      firebaseMessagingBackgroundHandler,
-    );
-  }
-  
   runApp(const MyApp());
 }
 
-/// ✅ MyApp MUST be Stateful
+/// ✅ Root App
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -63,70 +35,111 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
+  bool _initialized = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-
-    // 🔔 BACKGROUND notification tap
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      handleNotificationNavigation(message.data);
-    });
-
-    // 🔔 TERMINATED notification tap (store only)
-    FirebaseMessaging.instance.getInitialMessage().then((message) async {
-      if (message != null &&
-          message.data['type'] == 'follow_up' &&
-          message.data['lead_id'] != null) {
-
-        final int leadId = int.parse(message.data['lead_id']);
-        await UserSession.setPendingLead(leadId);
-      }
-    });
-    
-
-    // 🚀 Navigate ONLY after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_pendingNotificationData != null) {
-        handleNotificationNavigation(_pendingNotificationData!);
-        _pendingNotificationData = null;
-      }
-    });
-    
+    _initApp();
   }
-  
-  
-  
-  
+
+  /// 🚀 Safe App Initialization
+  Future<void> _initApp() async {
+    try {
+      // 🌍 WEB
+      if (kIsWeb) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+      // 📱 ANDROID / iOS
+      else {
+        await Firebase.initializeApp();
+
+        FirebaseMessaging.onBackgroundMessage(
+          firebaseMessagingBackgroundHandler,
+        );
+
+        // 🔔 Notification opened (background)
+        FirebaseMessaging.onMessageOpenedApp.listen((message) {
+          handleNotificationNavigation(message.data);
+        });
+
+        // 🔔 Notification opened (terminated)
+        final message =
+            await FirebaseMessaging.instance.getInitialMessage();
+
+        if (message != null) {
+          handleNotificationNavigation(message.data);
+        }
+      }
+
+      // 👤 Restore user session
+      await UserSession.restore();
+
+      setState(() {
+        _initialized = true;
+      });
+    } catch (e, st) {
+      debugPrint('INIT ERROR: $e');
+      debugPrintStack(stackTrace: st);
+
+      setState(() {
+        _error = e.toString();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // 🔄 LOADING (Apple needs this)
+    if (!_initialized && _error == null) {
+      return const MaterialApp(
+        home: Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    // ❌ ERROR (still acceptable to Apple)
+    if (_error != null) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text(
+              'Unable to start app.\n\n$_error',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ✅ APP READY
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'The Cube Club',
       navigatorKey: navigatorKey,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: ThemeData(primarySwatch: Colors.blue),
       home: const LoginScreen(),
     );
   }
 }
 
-/// 🚀 Central Navigation Handler
+/// 🚀 Central Notification Navigation
 void handleNotificationNavigation(Map<String, dynamic> data) {
   if (data['type'] != 'follow_up' || data['lead_id'] == null) return;
 
   final int leadId = int.parse(data['lead_id']);
 
-  // 🔴 USER NOT LOGGED IN → SAVE & GO TO LOGIN
+  // 🔴 User not logged in → store & wait
   if (UserSession.bdmId == null) {
     UserSession.pendingLeadId = leadId;
     return;
   }
 
-  // ✅ USER LOGGED IN → OPEN LEAD
+  // ✅ User logged in → open lead
   navigatorKey.currentState?.push(
     MaterialPageRoute(
       builder: (_) => LeadsPage(
@@ -137,4 +150,3 @@ void handleNotificationNavigation(Map<String, dynamic> data) {
     ),
   );
 }
-
