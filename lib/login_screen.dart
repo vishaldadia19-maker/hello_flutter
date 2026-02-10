@@ -220,127 +220,14 @@ Future<void> _saveFcmToken(int bdmId) async {
 
   @override
   Widget build(BuildContext context) {
-
-  debugPrint("🔥 LoginScreen build() called");
-  
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-
-                  /// LOGO
-                  Image.asset(
-                    'assets/logo.png',
-                    height: 200,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  /// TITLE
-                  const Text(
-                    'CRM Login',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  /// USERNAME
-                  TextFormField(
-                    controller: usernameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Username',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter username';
-                      }
-                      if (value.length < 3) {
-                        return 'Minimum 3 characters';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  /// PASSWORD
-                  TextFormField(
-                    controller: passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter password';
-                      }
-                      if (value.length < 4) {
-                        return 'Minimum 4 characters';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  /// REMEMBER ME
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: rememberMe,
-                        onChanged: (v) {
-                          setState(() {
-                            rememberMe = v ?? false;
-                          });
-                        },
-                      ),
-                      const Text('Save credentials'),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  /// LOGIN BUTTON
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _login,
-                      child: const Text('Login'),
-                    ),
-                  ),
-                  
-
-
-                ],
-              ),
-            ),
-          ),
+    return const Scaffold(
+      body: Center(
+        child: Text(
+          'LOGIN SCREEN',
+          style: TextStyle(fontSize: 24),
         ),
       ),
     );
   }
+  
 }
