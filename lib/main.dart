@@ -21,10 +21,21 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// 🌍 Global Navigator Key
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🔥 ALWAYS initialize Firebase FIRST on mobile
+  if (!kIsWeb) {
+    await Firebase.initializeApp();
+  } else {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
   runApp(const MyApp());
 }
+
 
 /// ✅ Root App
 class MyApp extends StatefulWidget {
@@ -47,36 +58,17 @@ class _MyAppState extends State<MyApp> {
   /// 🚀 Safe App Initialization
   Future<void> _initApp() async {
     try {
-      // 🌍 WEB
-      if (kIsWeb) {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-      }
-      // 📱 ANDROID / iOS
-      else {
-        await Firebase.initializeApp();
+      await UserSession.restore();
 
+      if (!kIsWeb) {
         FirebaseMessaging.onBackgroundMessage(
           firebaseMessagingBackgroundHandler,
         );
 
-        // 🔔 Notification opened (background)
         FirebaseMessaging.onMessageOpenedApp.listen((message) {
           handleNotificationNavigation(message.data);
         });
-
-        // 🔔 Notification opened (terminated)
-        final message =
-            await FirebaseMessaging.instance.getInitialMessage();
-
-        if (message != null) {
-          handleNotificationNavigation(message.data);
-        }
       }
-
-      // 👤 Restore user session
-      await UserSession.restore();
 
       setState(() {
         _initialized = true;
@@ -90,6 +82,7 @@ class _MyAppState extends State<MyApp> {
       });
     }
   }
+  
 
   @override
   Widget build(BuildContext context) {
