@@ -52,86 +52,49 @@ class _MyAppState extends State<MyApp> {
   String _stage = 'Starting app...';
 
 
+
+
+  /// 🚀 Safe App Initialization
   @override
   void initState() {
     super.initState();
-    _initApp();
+    _initApp(); // fire & forget
   }
 
-  /// 🚀 Safe App Initialization
 Future<void> _initApp() async {
   try {
-    setState(() => _stage = 'Restoring user session');
-
-    //await UserSession.restore();
-
-    setState(() => _stage = 'Setting up notifications');
+    await UserSession.restore();
 
     if (!kIsWeb) {
       FirebaseMessaging.onBackgroundMessage(
         firebaseMessagingBackgroundHandler,
       );
+
+      FirebaseMessaging.onMessageOpenedApp.listen((message) {
+        handleNotificationNavigation(message.data);
+      });
     }
-
-    setState(() => _stage = 'Initialization complete');
-
-    setState(() {
-      _initialized = true;
-    });
-  } catch (e, st) {
-    setState(() {
-      _error = e.toString();
-      _stage = 'Error occurred';
-    });
+  } catch (e) {
+    debugPrint('Init warning: $e');
   }
 }
+
   
   
+@override
+Widget build(BuildContext context) {
+  return MaterialApp(
+    debugShowCheckedModeBanner: false,
+    title: 'The Cube Club',
+    navigatorKey: navigatorKey,
+    theme: ThemeData(primarySwatch: Colors.blue),
 
-  @override
-  Widget build(BuildContext context) {
-    // 🔄 LOADING (Apple needs this)
-    if (!_initialized && _error == null) {
-      return  MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 12),
-                Text(_stage),
-              ],
-            ),
-          ),
+    // 🔥 ALWAYS show LoginScreen
+    home: const LoginScreen(),
+  );
+}
 
-        ),
-      );
-    }
 
-    // ❌ ERROR (still acceptable to Apple)
-    if (_error != null) {
-      return MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Text(
-              'Unable to start app.\n\n$_error',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
-    }
-
-    // ✅ APP READY
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'The Cube Club',
-      navigatorKey: navigatorKey,
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const LoginScreen(),
-    );
-  }
 }
 
 /// 🚀 Central Notification Navigation
