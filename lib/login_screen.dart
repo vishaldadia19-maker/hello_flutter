@@ -1,11 +1,17 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
 import 'package:http/http.dart' as http;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import 'screens/dashboard_screen.dart';
 import 'utils/user_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'leads_page.dart';
+
 
 
 class LoginScreen extends StatefulWidget {
@@ -30,43 +36,54 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
 
-
-  Future<void> _saveFcmToken(int bdmId) async {
-    try {
-
-      print('🚀 ENTERED _saveFcmToken'); // <-- ADD THIS
-
-
-      String? token = await FirebaseMessaging.instance.getToken();
-
-      if (token == null) {
-        debugPrint('❌ FCM token is null');
-        return;
-      }
-
-      debugPrint('✅ Saving FCM token');
-
-      print('BDM ID: $bdmId');
-      print('FCM Token: $token');
-
-
-      await http.post(
-        Uri.parse(
-            'https://backoffice.thecubeclub.co/apis/save_fcm_token.php'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          'bdm_id': bdmId,
-          'fcm_token': token,
-          'platform': 'android',
-        }),
-      );
-    } catch (e) {
-      debugPrint('❌ Error saving FCM token: $e');
-    }
+Future<void> ensureFirebaseReady() async {
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp();
   }
+}
+
+
+
+Future<void> _saveFcmToken(int bdmId) async {
+  try {
+    // 🚫 iOS / Android only, skip Web
+    if (kIsWeb) return;
+
+    // ✅ Ensure Firebase is ready
+    await ensureFirebaseReady();
+
+    debugPrint('🚀 ENTERED _saveFcmToken');
+
+    final messaging = FirebaseMessaging.instance;
+
+    String? token = await messaging.getToken();
+
+    if (token == null) {
+      debugPrint('❌ FCM token is null');
+      return;
+    }
+
+    debugPrint('✅ Saving FCM token');
+
+    await http.post(
+      Uri.parse(
+        'https://backoffice.thecubeclub.co/apis/save_fcm_token.php',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({
+        'bdm_id': bdmId,
+        'fcm_token': token,
+        'platform': 'ios', // ✅ FIX (was android)
+      }),
+    );
+  } catch (e) {
+    debugPrint('❌ Error saving FCM token: $e');
+  }
+}
+  
 
 
   // ================= LOAD SAVED CREDENTIALS =================
@@ -157,7 +174,8 @@ class _LoginScreenState extends State<LoginScreen> {
         // ✅ SAVE FCM TOKEN HERE (non-blocking)
         //_saveFcmToken(bdmId);
         
-        await _saveFcmToken(bdmId);
+        //await _saveFcmToken(bdmId);
+        _saveFcmToken(bdmId);
 
         // 🔥 IF APP WAS OPENED FROM NOTIFICATION (COLD SAFE)
         final int? pendingLeadId = await UserSession.consumePendingLead();

@@ -45,3 +45,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Apple API Keys (DO NOT COMMIT)
+*.p8
+AuthKey_*.p8
+reference material/
+
