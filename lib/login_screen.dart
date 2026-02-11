@@ -1,18 +1,13 @@
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-
 import 'package:http/http.dart' as http;
-import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'screens/dashboard_screen.dart';
 import 'utils/user_session.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'leads_page.dart';
-
-
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
   bool rememberMe = false;
+  bool _isLoading = false;
 
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -34,57 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _loadSavedCredentials();
   }
-
-
-Future<void> ensureFirebaseReady() async {
-  if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp();
-  }
-}
-
-
-
-Future<void> _saveFcmToken(int bdmId) async {
-  try {
-    // 🚫 iOS / Android only, skip Web
-    if (kIsWeb) return;
-
-    // ✅ Ensure Firebase is ready
-    await ensureFirebaseReady();
-
-    debugPrint('🚀 ENTERED _saveFcmToken');
-
-    final messaging = FirebaseMessaging.instance;
-
-    String? token = await messaging.getToken();
-
-    if (token == null) {
-      debugPrint('❌ FCM token is null');
-      return;
-    }
-
-    debugPrint('✅ Saving FCM token');
-
-    await http.post(
-      Uri.parse(
-        'https://backoffice.thecubeclub.co/apis/save_fcm_token.php',
-      ),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({
-        'bdm_id': bdmId,
-        'fcm_token': token,
-        'platform': 'ios', // ✅ FIX (was android)
-      }),
-    );
-  } catch (e) {
-    debugPrint('❌ Error saving FCM token: $e');
-  }
-}
-  
-
 
   // ================= LOAD SAVED CREDENTIALS =================
 
@@ -112,10 +57,8 @@ Future<void> _saveFcmToken(int bdmId) async {
     final prefs = await SharedPreferences.getInstance();
 
     if (rememberMe) {
-      await prefs.setString(
-          'username', usernameController.text.trim());
-      await prefs.setString(
-          'password', passwordController.text.trim());
+      await prefs.setString('username', usernameController.text.trim());
+      await prefs.setString('password', passwordController.text.trim());
       await prefs.setBool('remember_me', true);
     } else {
       await prefs.remove('username');
@@ -124,17 +67,41 @@ Future<void> _saveFcmToken(int bdmId) async {
     }
   }
 
+  // ================= SAVE FCM TOKEN =================
+
+  Future<void> _saveFcmToken(int bdmId) async {
+    try {
+      String? token = await FirebaseMessaging.instance.getToken();
+      if (token == null) return;
+
+      await http.post(
+        Uri.parse(
+            'https://backoffice.thecubeclub.co/apis/save_fcm_token.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'bdm_id': bdmId,
+          'fcm_token': token,
+          'platform': Platform.isIOS ? 'ios' : 'android',
+        }),
+      );
+    } catch (_) {
+      // Silent fail – push token save should not break login
+    }
+  }
+
   // ================= LOGIN =================
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final url =
-        Uri.parse('https://backoffice.thecubeclub.co/apis/login.php');
+    setState(() => _isLoading = true);
 
     try {
       final response = await http.post(
-        url,
+        Uri.parse('https://backoffice.thecubeclub.co/apis/login.php'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -148,39 +115,33 @@ Future<void> _saveFcmToken(int bdmId) async {
       final data = jsonDecode(response.body);
 
       if (data['status'] == true) {
-
-
         final int bdmId =
-            int.parse(data['user']['bdm_id'].toString());
+            int.tryParse(data['user']['bdm_id'].toString()) ?? 0;
 
         final String userName =
             data['user']['name']?.toString() ?? '';
 
-        final String enteredUsername = usernameController.text.trim();
-
         final bool isVoiceUser =
-            enteredUsername.toLowerCase().endsWith('voice');
-
+            usernameController.text.trim().toLowerCase().endsWith('voice');
 
         await UserSession.save(
           bdmId: bdmId,
           userName: userName,
-          isVoiceUser: isVoiceUser, // 👈 NEW
+          isVoiceUser: isVoiceUser,
         );
-
 
         await _saveCredentials();
 
-        // ✅ SAVE FCM TOKEN HERE (non-blocking)
-        //_saveFcmToken(bdmId);
-        
-        //await _saveFcmToken(bdmId);
+        // Save FCM token (non-blocking)
         _saveFcmToken(bdmId);
 
-        // 🔥 IF APP WAS OPENED FROM NOTIFICATION (COLD SAFE)
-        final int? pendingLeadId = await UserSession.consumePendingLead();
+        // Handle pending notification
+        final int? pendingLeadId =
+            await UserSession.consumePendingLead();
 
         if (pendingLeadId != null) {
+          if (!mounted) return;
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -193,8 +154,8 @@ Future<void> _saveFcmToken(int bdmId) async {
           );
           return;
         }
-        
 
+        if (!mounted) return;
 
         Navigator.pushReplacement(
           context,
@@ -202,15 +163,21 @@ Future<void> _saveFcmToken(int bdmId) async {
             builder: (_) => DashboardScreen(bdmId: bdmId),
           ),
         );
-      }else {
-        _showMessage(data['message']);
+      } else {
+        _showMessage(data['message'] ?? 'Login failed');
       }
-    } catch (e) {
+    } catch (_) {
       _showMessage('Network error. Please try again.');
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
@@ -220,14 +187,113 @@ Future<void> _saveFcmToken(int bdmId) async {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text(
-          'LOGIN SCREEN',
-          style: TextStyle(fontSize: 24),
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+
+                  Image.asset('assets/logo.png', height: 200),
+
+                  const SizedBox(height: 16),
+
+                  const Text(
+                    'CRM Login',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  TextFormField(
+                    controller: usernameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter username';
+                      }
+                      if (value.length < 3) {
+                        return 'Minimum 3 characters';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  TextFormField(
+                    controller: passwordController,
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter password';
+                      }
+                      if (value.length < 4) {
+                        return 'Minimum 4 characters';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: rememberMe,
+                        onChanged: (v) {
+                          setState(() {
+                            rememberMe = v ?? false;
+                          });
+                        },
+                      ),
+                      const Text('Save credentials'),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _login,
+                      child: _isLoading
+                          ? const CircularProgressIndicator(
+                              color: Colors.white)
+                          : const Text('Login'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
-  
 }
