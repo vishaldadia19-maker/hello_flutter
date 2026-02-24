@@ -12,6 +12,8 @@ import 'package:hello_flutter/models/lead_model.dart';
 import 'package:hello_flutter/services/lead_service.dart';
 import 'package:hello_flutter/leads_page.dart';
 
+import 'package:hello_flutter/screens/followup_report_screen.dart';
+
 import 'package:hello_flutter/new_lead_entry_page.dart';
 
 import 'package:hello_flutter/utils/user_session.dart';
@@ -331,6 +333,24 @@ drawer: Drawer(
           );
         },
       ),
+
+       ListTile(
+  leading: const Icon(Icons.calendar_today),
+  title: const Text('Followup Report'),
+  onTap: () {
+    Navigator.pop(context);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FollowupReportScreen(
+          bdmId: UserSession.bdmId!,
+        ),
+      ),
+    );
+  },
+),
+
 
 
       const Spacer(),
