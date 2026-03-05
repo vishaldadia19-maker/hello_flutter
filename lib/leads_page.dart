@@ -334,7 +334,24 @@ Future<void> openWhatsApp(BuildContext context, String phone, String name) async
     cleanPhone = '91$cleanPhone';
   }
 
-  final message = '''
+  String message;
+
+  /// ✅ SPECIAL MESSAGE FOR BDM 70
+  if (UserSession.bdmId == 70) {
+    message = '''
+Hello $name, 
+
+This is *Pooja Purohit* from Dholera Group, Ahmedabad.
+
+I received your inquiry through our *Facebook advertisement* regarding *Residential & Commercial Plots in Dholera SIR*. We also deal in Bulk Land investment opportunities.
+
+For more details Contact Now👇
+📞 +91 7977045352
+''';
+  } 
+  /// DEFAULT MESSAGE FOR OTHER BDMs
+  else {
+    message = '''
 Hello $name,
 
 This is regarding your inquiry with The Cube Club.
@@ -343,6 +360,7 @@ Please let me know a good time to connect.
 Thanks,
 ${UserSession.userName ?? ''}
 ''';
+  }
 
   final Uri url = Uri.parse(
     'https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}',
