@@ -1,9 +1,15 @@
 import 'dart:convert';
-import 'dart:io';
+
+import 'services/background_sync_stub.dart'
+  if (dart.library.io) 'services/background_sync.dart';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:flutter/foundation.dart'; // already likely added
 
 import 'screens/dashboard_screen.dart';
 import 'utils/user_session.dart';
@@ -74,6 +80,8 @@ class _LoginScreenState extends State<LoginScreen> {
       String? token = await FirebaseMessaging.instance.getToken();
       if (token == null) return;
 
+      final platform = kIsWeb ? 'web' : 'android';
+
       await http.post(
         Uri.parse(
             'https://backoffice.thecubeclub.co/apis/save_fcm_token.php'),
@@ -84,7 +92,8 @@ class _LoginScreenState extends State<LoginScreen> {
         body: jsonEncode({
           'bdm_id': bdmId,
           'fcm_token': token,
-          'platform': Platform.isIOS ? 'ios' : 'android',
+          'platform': platform,
+
         }),
       );
     } catch (_) {
@@ -121,6 +130,8 @@ class _LoginScreenState extends State<LoginScreen> {
         final String userName =
             data['user']['name']?.toString() ?? '';
 
+        final String role = data['user']['role']?.toString() ?? '';            
+
         final bool isVoiceUser =
             usernameController.text.trim().toLowerCase().endsWith('voice');
 
@@ -128,9 +139,29 @@ class _LoginScreenState extends State<LoginScreen> {
           bdmId: bdmId,
           userName: userName,
           isVoiceUser: isVoiceUser,
+          role: role, // ✅ THIS WAS MISSING
         );
 
         await _saveCredentials();
+
+        final prefs = await SharedPreferences.getInstance();
+
+        // ✅ Save user_id for background
+        await prefs.setInt("user_id", bdmId);
+
+        // 🚀 START AUTO SYNC (Alarm Manager)
+        if (!kIsWeb) {
+          await AndroidAlarmManager.periodic(
+            const Duration(minutes: 15),
+            1, // unique ID
+            backgroundSync,
+            wakeup: true,
+            exact: false,
+          );
+        }
+
+        print("✅ Auto Sync Scheduled");
+
 
         // Save FCM token (non-blocking)
         _saveFcmToken(bdmId);

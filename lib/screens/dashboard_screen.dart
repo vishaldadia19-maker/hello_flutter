@@ -4,6 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import '../services/background_sync_stub.dart'
+  if (dart.library.io) '../services/background_sync.dart';
+
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+
+
 import 'package:flutter/material.dart';
 import 'package:hello_flutter/models/dashboard_model.dart';
 import 'package:hello_flutter/services/dashboard_api.dart';
@@ -18,6 +24,11 @@ import 'package:hello_flutter/new_lead_entry_page.dart';
 
 import 'package:hello_flutter/utils/user_session.dart';
 import 'package:hello_flutter/login_screen.dart';
+import 'package:hello_flutter/screens/site_visit_list_screen.dart';
+
+import 'package:hello_flutter/screens/call_sync_screen.dart';
+import 'package:hello_flutter/screens/folder_setup_screen.dart';
+import 'package:hello_flutter/screens/manual_sync_screen.dart';
 
 import 'package:hello_flutter/models/status_breakdown_model.dart';
 import 'package:hello_flutter/services/status_breakdown_api.dart';
@@ -350,6 +361,70 @@ drawer: Drawer(
     );
   },
 ),
+
+if (UserSession.role?.toLowerCase() == 'site visit')
+  ListTile(
+    leading: const Icon(Icons.location_on),
+    title: const Text('Site Visit Module'),
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SiteVisitListScreen())
+      );
+    },    
+  ),
+
+ListTile(
+  leading: Icon(Icons.sync),
+  title: Text("Folder Setup"),
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => FolderSetupScreen()),
+    );
+  },
+),
+
+
+
+ListTile(
+  leading: Icon(Icons.sync),
+  title: Text("Call Sync"),
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ManualSyncScreen()),
+    );
+  },
+),
+
+ListTile(
+  leading: Icon(Icons.play_circle_outline, color: Colors.green),
+  title: Text("Test Background Sync (10 sec)"),
+  onTap: () async {
+    Navigator.pop(context);
+
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Not supported on Web")),
+      );
+      return;
+    }
+
+    await AndroidAlarmManager.oneShot(
+      const Duration(seconds: 10),
+      99, // unique ID
+      backgroundSync,
+      wakeup: true,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Sync will run in 10 seconds")),
+    );
+  },
+),
+
+
 
 
 

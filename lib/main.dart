@@ -3,6 +3,15 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+
+import 'services/background_sync.dart';
+
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+
+
 import 'firebase_options.dart';
 import 'login_screen.dart';
 import 'leads_page.dart';
@@ -27,11 +36,17 @@ Future<void> firebaseMessagingBackgroundHandler(
   }
 }
 
+
 /// 🚀 MAIN ENTRY
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🔥 Correct Firebase initialization
+  // ✅ Initialize Alarm Manager FIRST
+  if (!kIsWeb) {
+    await AndroidAlarmManager.initialize();
+  }
+
+  // ✅ Firebase init
   if (kIsWeb) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -40,18 +55,20 @@ void main() async {
     await Firebase.initializeApp();
   }
 
-  // Restore saved user session
+  // ✅ Restore session
   await UserSession.restore();
 
-  // Register background handler (mobile only)
+  // ✅ Firebase background handler
   if (!kIsWeb) {
     FirebaseMessaging.onBackgroundMessage(
       firebaseMessagingBackgroundHandler,
     );
   }
 
+  // ✅ SINGLE runApp
   runApp(const MyApp());
 }
+
 
 /// ✅ Root App
 class MyApp extends StatefulWidget {
@@ -65,6 +82,8 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    startCallListener();
+
 
     if (!kIsWeb) {
       _configureFirebaseMessaging();

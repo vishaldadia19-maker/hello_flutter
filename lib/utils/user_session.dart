@@ -5,6 +5,8 @@ class UserSession {
   static String? userName;
   static String? token; // future use
   static bool isVoiceUser = false; // 👈 NEW
+  static String? role; // ✅ ADD THIS
+
 
 
   static int? pendingLeadId;
@@ -17,17 +19,22 @@ class UserSession {
     required int bdmId,
     required String userName,
     required bool isVoiceUser, // 👈 NEW
+    required String role, // ✅ ADD THIS
+
+    
 
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('bdm_id', bdmId);
     await prefs.setString('user_name', userName);
     await prefs.setBool(_keyIsVoiceUser, isVoiceUser);
+    await prefs.setString('role', role); // ✅ ADD
 
 
     UserSession.bdmId = bdmId;
     UserSession.userName = userName;
-    UserSession.isVoiceUser = isVoiceUser;
+    UserSession.isVoiceUser = isVoiceUser;    
+    UserSession.role = role; // ✅ IMPORTANT
 
   }
 
@@ -55,6 +62,7 @@ class UserSession {
     bdmId = prefs.getInt('bdm_id');
     userName = prefs.getString('user_name');
     isVoiceUser = prefs.getBool(_keyIsVoiceUser) ?? false;
+    role = prefs.getString('role'); // ✅ ADD
 
 
     if (bdmId != null) {
@@ -75,6 +83,7 @@ class UserSession {
     userName = null;
     pendingLeadId = null;
     isVoiceUser = false;
+    role = null;
 
 
   }
