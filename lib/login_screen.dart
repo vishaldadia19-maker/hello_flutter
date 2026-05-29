@@ -149,19 +149,6 @@ class _LoginScreenState extends State<LoginScreen> {
         // ✅ Save user_id for background
         await prefs.setInt("user_id", bdmId);
 
-        // 🚀 START AUTO SYNC (Alarm Manager)
-        if (!kIsWeb) {
-          await AndroidAlarmManager.periodic(
-            const Duration(minutes: 15),
-            1, // unique ID
-            backgroundSync,
-            wakeup: true,
-            exact: false,
-          );
-        }
-
-        print("✅ Auto Sync Scheduled");
-
 
         // Save FCM token (non-blocking)
         _saveFcmToken(bdmId);
