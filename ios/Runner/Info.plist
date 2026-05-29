@@ -40,6 +40,8 @@
 	<string>This app uses camera to capture photos during site visits and CRM activities.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app accesses photo library to upload and attach images for CRM activities.</string>	
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app requires location access for business functionality.</string>	
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
