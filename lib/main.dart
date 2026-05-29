@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -8,8 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
 import 'services/background_sync.dart';
-
-import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 
 
 import 'firebase_options.dart';
@@ -41,10 +40,6 @@ Future<void> firebaseMessagingBackgroundHandler(
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Initialize Alarm Manager FIRST
-  if (!kIsWeb) {
-    await AndroidAlarmManager.initialize();
-  }
 
   // ✅ Firebase init
   if (kIsWeb) {
